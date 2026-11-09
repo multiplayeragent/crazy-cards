@@ -1,0 +1,21 @@
+{
+  "name": "Crazy Cards",
+  "genre": "board",
+  "dim": "2D",
+  "mode": "Turn-based",
+  "players": "2–6",
+  "hook": "Match the color or number. Empty your hand first.",
+  "how": "Play a card that matches the top card by color or number, or a wild. Skip, reverse, +2 and wild +4 change the turn. No match? Draw one. First to empty their hand wins the round.",
+  "controls": "Click or tap a card, tap the deck to draw",
+  "uses": [
+    ["Hidden info", "Your hand is sealed so only you can read it (the host deals, so it can too)."],
+    ["Host-run rules", "The host's browser shuffles, deals and checks every card; if it leaves, the next player takes over."],
+    ["Bots", "Bots fill empty seats and take over for anyone who leaves."],
+    ["Leaderboard", "Rounds won, shown after every round."]
+  ],
+  "ideas": [
+    "Add a wild card that swaps hands",
+    "Let +2 cards stack",
+    "Add a points mode over five rounds"
+  ]
+}
