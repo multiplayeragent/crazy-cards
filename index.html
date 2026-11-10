@@ -59,7 +59,7 @@
   #pick div { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; border-radius: 20px; background: #13272e; }
   #pick button { width: 92px; height: 92px; border-radius: 18px; border: 4px solid #fff; cursor: pointer; }
   #pick[hidden], #over[hidden], #keep[hidden] { display: none; }
-  .box { width: min(340px, 88vw); max-height: 86vh; overflow: auto; padding: 20px; border-radius: 18px; background: #13272e; border: 1px solid #ffffff22; text-align: center; }
+  .box { box-sizing: border-box; width: min(382px, calc(100vw - 32px)); max-height: 86vh; overflow: auto; padding: 20px; border-radius: 18px; background: #13272e; border: 1px solid #ffffff22; text-align: center; }
   .box h2 { margin: 0 0 4px; font-size: 26px; } .box p { margin: 0 0 12px; opacity: .8; }
   .box h3 { margin: 6px 0 4px; font-size: 13px; color: #ffd166; text-align: left; }
   .box ol { text-align: left; margin: 0 0 12px; padding-left: 24px; font-size: 14px; min-height: 30px; } .box li span { float: right; }
@@ -372,6 +372,7 @@ function fixSeats(g) {
   seats.forEach((s, i) => {
     if (!s.b && !stillHere(s.i)) { seats[i] = { i: `bot-${g.id}-${g.t}-${i}`, n: BOT_NAMES.find((b) => !seats.some((x) => x.n === b)) || "Bot", c: s.c, b: 1 }; changed = true; }
     else if (s.b && waiting.length && !ATTRACT) { const id = waiting.shift(); seats[i] = { i: id, n: playerName(id), c: playerColor(id) }; sealSeats.push(i); changed = true; }
+    else if (!s.b && S.entities.players[s.i]?.c && s.c !== playerColor(s.i)) { seats[i] = { ...s, c: playerColor(s.i) }; changed = true; } // they picked a new color (fixColor)
   });
   return changed ? commit({ ...g, seats }, sealSeats) : null;
 }
@@ -630,8 +631,8 @@ if (!myName) { myName = pickOne(NAME_A) + " " + pickOne(NAME_B); try { localStor
 if (ATTRACT) { Object.assign(CONFIG, { seats: 5, botMs: 520, turnMs: 4000, resultsMs: 2200, handSize: 6 }); $("net").textContent = ""; }
 
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (now - lastHb > 1000) { lastHb = now; net.me.set("hb", Date.now()); }
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; // never negative: the first frame can be stamped before `last`
+  if (now - lastHb > 1000) { lastHb = now; net.me.set("hb", Date.now()); fixColor(); }
   if (isHost()) hostTick(now); else stopHosting();
   const g = game();
   if (g) {
@@ -641,6 +642,15 @@ function frame(now) {
   }
   drawFx(dt);
   requestAnimationFrame(frame);
+}
+
+/** Two players picked the same color at once (the joiner's first state can be empty): the later sessionId picks again.
+ *  The bots' colors at the table count as taken too. */
+function fixColor() {
+  const others = Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId), botColors = (game()?.seats || []).filter((s) => s.b).map((s) => s.c);
+  if (!others.some(([id, p]) => p.c === myColor && id < net.sessionId) && !botColors.includes(myColor)) return;
+  const taken = new Set([...others.map(([, p]) => p.c), ...botColors]);
+  myColor = COLORS.find((c) => !taken.has(c)) || myColor; net.me.set("c", myColor);
 }
 
 (async function start() {
@@ -655,7 +665,7 @@ function frame(now) {
   net.onDisconnect(() => { dropped = true; $("net").textContent = "Reconnecting…"; });
   net.onReconnect(() => { dropped = false; });
   if (!net.offline && typeof MP !== "undefined") board = MP.auth({ key: MP_CONNECT.key, apiUrl: MP_CONNECT.apiUrl }).leaderboard(CONFIG.board);
-  const taken = new Set(Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId).map(([, p]) => p.c));
+  const taken = new Set([...Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId).map(([, p]) => p.c), ...(game()?.seats || []).filter((s) => s.b).map((s) => s.c)]);
   myColor = COLORS.find((c) => !taken.has(c)) || pickOne(COLORS);
   const pk = await Seal.init().catch(() => "");
   net.me.set({ n: myName, c: myColor, pk, hb: Date.now() });
