@@ -328,7 +328,7 @@ function deal(prev) {
 /** Play a card: skip, reverse, +2, wild and wild +4 do their thing; an empty hand wins. */
 function playCard(g, i, card, color) {
   const hand = host.hands[i], at = hand.indexOf(card);
-  if (at < 0 || !matches(card, g) || (card[0] === "w" && !"rygb".includes(color || "x"))) return; // refused
+  if (at < 0 || !matches(card, g) || (card[0] === "w" && !["r", "y", "g", "b"].includes(color))) return; // refused
   if (g.drew && card !== hand[hand.length - 1]) return; // after drawing, only the card just drawn may be played
   hand.splice(at, 1); host.pile.push(card); host.pileDirty = true;
   const n = g.seats.length, v = card[1], dir = v === "R" ? -g.dir : g.dir, sealSeats = [i];
@@ -341,8 +341,9 @@ function playCard(g, i, card, color) {
 }
 /** Draw one. If it can be played, you may play it (or keep it); otherwise the turn passes. */
 function drawCard(g, i) {
+  const had = host.hands[i].length;
   give(i, 1);
-  const card = host.hands[i][host.hands[i].length - 1], can = !!card && matches(card, g), counts = host.hands.map((h) => h.length);
+  const card = host.hands[i].length > had ? host.hands[i][had] : null, can = !!card && matches(card, g), counts = host.hands.map((h) => h.length);
   const out = can ? nextTurn(g, i, { drew: 1, turnEnds: Date.now() + Math.min(CONFIG.turnMs, 8000) }) : nextTurn(g, step(g.seats.length, g.dir, i, 1));
   return commit({ ...out, counts, last: { s: i, a: "draw", k: 1 } }, [i]);
 }
